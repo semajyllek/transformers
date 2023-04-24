@@ -30,7 +30,7 @@ if is_torch_available():
     import torch
 
     from transformers import BioGptForCausalLM, BioGptForTokenClassification, BioGptModel, BioGptTokenizer
-    from transformers.models.biogpt.modeling_biogpt import BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST
+    from transformers.models.biogpt.modeling_biogpt import BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST, BioGptForSequenceClassification
 
 
 class BioGptModelTester:
@@ -256,7 +256,17 @@ class BioGptModelTester:
         model.eval()
         result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
-
+        
+    def create_and_check_biogpt_for_sequence_classification(
+        self, config, input_ids, input_mask, head_mask, token_type_ids, *args
+    ):
+        config.num_labels = self.num_labels
+        model = BioGptForSequenceClassification(config)
+        model.to(torch_device)
+        model.eval()
+        result = model(input_ids, attention_mask=input_mask)
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
+        
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         (
@@ -323,6 +333,10 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
     def test_biogpt_token_classification_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
         self.model_tester.create_and_check_biogpt_for_token_classification(*config_and_inputs)
+
+    def test_biogpt_sequence_classification_model(self):
+        config_and_inputs = self.model_tester.prepare_config_and_inputs()
+        self.model_tester.create_and_check_biogpt_for_sequence_classification(*config_and_inputs)    
 
     @slow
     def test_batch_generation(self):
