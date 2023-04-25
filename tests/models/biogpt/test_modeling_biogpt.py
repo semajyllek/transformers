@@ -59,6 +59,7 @@ class BioGptModelTester:
         num_labels=3,
         num_choices=4,
         scope=None,
+        add_eos_token_ids=False
     ):
         self.parent = parent
         self.batch_size = batch_size
@@ -83,7 +84,7 @@ class BioGptModelTester:
         self.num_choices = num_choices
         self.scope = scope
 
-    def prepare_config_and_inputs(self):
+    def prepare_config_and_inputs(self, add_eos_token_ids=False):
         input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
 
         input_mask = None
@@ -103,6 +104,10 @@ class BioGptModelTester:
             choice_labels = ids_tensor([self.batch_size], self.num_choices)
 
         config = self.get_config()
+
+        if add_eos_token_ids:
+            input_ids[:, -1] = config.eos_token_id
+
 
         return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
@@ -286,7 +291,7 @@ class BioGptModelTester:
         model.to(torch_device)
         model.eval()
         result = model(input_ids, attention_mask=input_mask)
-        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
     
 
     def prepare_config_and_inputs_for_common(self):
@@ -357,11 +362,11 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
         self.model_tester.create_and_check_biogpt_for_token_classification(*config_and_inputs)
 
     def test_biogpt_sequence_classification_model(self):
-        config_and_inputs = self.model_tester.prepare_config_and_inputs()
+        config_and_inputs = self.model_tester.prepare_config_and_inputs(add_eos_token_ids=True)
         self.model_tester.create_and_check_biogpt_for_sequence_classification(*config_and_inputs) 
 
+    #@slow
     def test_sequence_classification(self):
-    
         tokenizer = BioGptTokenizer.from_pretrained("microsoft/biogpt")
         tokenizer.padding_side = "left"
 
@@ -369,23 +374,14 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
         model.to(torch_device)
         
         inputs = tokenizer(
-            "A 72 y.o. man with parkinson's disease with a levadopa prescription.", add_special_tokens=False, return_tensors="pt", padding_side='left'
+            "A 72 y.o. man with parkinson's disease with a levadopa prescription.", return_tensors="pt", padding_side='left'
         )
 
-        inputs['labels'] = torch.tensor([1])
-        for key, value in inputs.items():
-            print(f"{key}: {value.shape}, {value}")
-        
         with torch.no_grad():
-            logits = model(**inputs).logits
+            logits = model(**inputs, labels=torch.tensor([1])).logits
 
-
-        print(f"LOGITS:\n{logits.shape}, {logits}")
-
-        
         predicted_token_class_ids = logits.argmax(-1)
-
-        self.parent.assertEqual(1, 0)
+        self.assertEqual(predicted_token_class_ids, torch.tensor([2]))
                 
    
 

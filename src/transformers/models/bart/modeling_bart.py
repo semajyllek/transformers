@@ -1542,14 +1542,19 @@ class BartForSequenceClassification(BartPretrainedModel):
             return_dict=return_dict,
         )
         hidden_states = outputs[0]  # last hidden state
-
         eos_mask = input_ids.eq(self.config.eos_token_id).to(hidden_states.device)
-
+        if not eos_mask.any():
+            raise ValueError("No <eos> tokens found. Didi you mean to set add_special_tokens=True in the tokenizer?")
+           
         if len(torch.unique_consecutive(eos_mask.sum(1))) > 1:
             raise ValueError("All examples must have the same number of <eos> tokens.")
+      
+
+        # a representation of only the <eos> tokens to be predicted
         sentence_representation = hidden_states[eos_mask, :].view(hidden_states.size(0), -1, hidden_states.size(-1))[
             :, -1, :
         ]
+
         logits = self.classification_head(sentence_representation)
 
         loss = None
@@ -1571,7 +1576,7 @@ class BartForSequenceClassification(BartPretrainedModel):
                     loss = loss_fct(logits, labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
+                loss = loss_fct( logits.view(-1, self.config.num_labels), labels.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
