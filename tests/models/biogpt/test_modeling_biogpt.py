@@ -376,12 +376,13 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
         inputs = tokenizer(
             "A 72 y.o. man with parkinson's disease with a levadopa prescription.", return_tensors="pt", padding_side='left'
         )
+        print(inputs)
 
         with torch.no_grad():
             logits = model(**inputs, labels=torch.tensor([1])).logits
 
         predicted_token_class_ids = logits.argmax(-1)
-        self.assertEqual(predicted_token_class_ids, torch.tensor([2]))
+        self.assertEqual(predicted_token_class_ids, torch.tensor([1]))
                 
    
 

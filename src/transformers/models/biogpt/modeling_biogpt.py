@@ -836,6 +836,7 @@ class BioGptForSequenceClassification(BioGptPreTrainedModel):
             :, -1, :
         ]
 
+        print(sentence_representation.shape)
         logits = self.classification_head(sentence_representation)
 
         loss = None
@@ -857,6 +858,9 @@ class BioGptForSequenceClassification(BioGptPreTrainedModel):
                     loss = loss_fct(logits, labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
+                pl = logits.view(-1, self.config.num_labels)
+                lv = labels.view(-1)
+                print(pl.shape, lv.shape)
                 loss = loss_fct(logits.view(-1, self.config.num_labels), labels.view(-1))
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
