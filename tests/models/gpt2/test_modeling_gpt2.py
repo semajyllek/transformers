@@ -381,11 +381,15 @@ class GPT2ModelTester:
         self, config, input_ids, input_mask, head_mask, token_type_ids, mc_token_ids, sequence_labels, *args
     ):
         config.num_labels = self.num_labels
+        print(f"num_labels: {config.num_labels}")
         model = GPT2ForSequenceClassification(config)
         model.to(torch_device)
         model.eval()
+
+        print(input_ids)
         result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=sequence_labels)
-        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
+        self.parent.assertEqual(1, 0)
+        #self.parent.assertEqual(result.logits.shape, (self.batch_size, self.num_labels))
 
     def create_and_check_gpt2_for_token_classification(
         self, config, input_ids, input_mask, head_mask, token_type_ids, mc_token_ids, sequence_labels, *args
@@ -808,3 +812,17 @@ class GPT2ModelLanguageGenerationTest(unittest.TestCase):
                 "but said in a statement to The Associated Press that"
             ],
         )
+
+
+    def test_seqclass_gpt2(self):
+        pair = (
+            "Eligibility criteria: must be at least 18 years old, have a diagnosis of heart failure, and have a left ventricular ejection fraction of less than 40%. Patient description: 36 y.o. Female with renal failure and baseline creatinine of 2.3, Relevance of the eligibility criteria to the patient on a scale of 0-2, 2 being most relevant: "        
+        )
+
+        gpt2_tokenizer = GPT2Tokenizer.from_pretrained("gpt2-large")
+        gpt2_model = GPT2ForSequenceClassification.from_pretrained("gpt2-large", num_labels=3).to(torch_device)
+        input_ids = gpt2_tokenizer(pair, return_tensors="pt")
+        outputs = gpt2_model(**input_ids, labels=torch.tensor([1]).to(torch_device))
+        print(outputs.logits, outputs.loss)
+
+        assert False

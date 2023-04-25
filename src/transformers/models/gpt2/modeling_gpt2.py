@@ -1453,10 +1453,13 @@ class GPT2ForSequenceClassification(GPT2PreTrainedModel):
                     "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
                 )
 
+        print(f"logit shapes before pooling: {logits.shape}")
+        print(f"sequence lengths: {sequence_lengths}")
         pooled_logits = logits[torch.arange(batch_size, device=logits.device), sequence_lengths]
 
         loss = None
         if labels is not None:
+            print(labels)
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
@@ -1473,7 +1476,13 @@ class GPT2ForSequenceClassification(GPT2PreTrainedModel):
                     loss = loss_fct(pooled_logits, labels)
             elif self.config.problem_type == "single_label_classification":
                 loss_fct = CrossEntropyLoss()
-                loss = loss_fct(pooled_logits.view(-1, self.num_labels), labels.view(-1))
+                pl = pooled_logits.view(-1, self.num_labels)
+                lv = labels.view(-1)
+                print("_____   ______   ______  _______     _______    ____ ___     __LOSS SHAPES__ __      ______    ______ _____  ________    ______     ____")
+                print(f"pooled logits -1 view: {pl.shape}, labels -1 view: {lv.shape}")
+                breakpoint()
+                loss = loss_fct(pl, lv)
+             
             elif self.config.problem_type == "multi_label_classification":
                 loss_fct = BCEWithLogitsLoss()
                 loss = loss_fct(pooled_logits, labels)

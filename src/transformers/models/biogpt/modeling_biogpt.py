@@ -805,7 +805,10 @@ class BioGptForSequenceClassification(BioGptPreTrainedModel):
         )
 
         hidden_states = outputs[0]  # last hidden state
+        print(f"hidden state shape:\n{hidden_states.shape}")
         logits = self.classification_head(hidden_states)
+
+        print(f"after classification head logits:\n{logits.shape}, {logits}")
 
         loss = None
         if labels is not None:

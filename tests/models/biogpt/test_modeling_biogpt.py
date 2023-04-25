@@ -33,6 +33,7 @@ if is_torch_available():
     from transformers.models.biogpt.modeling_biogpt import BIOGPT_PRETRAINED_MODEL_ARCHIVE_LIST, BioGptForSequenceClassification
 
 
+
 class BioGptModelTester:
     def __init__(
         self,
@@ -148,6 +149,26 @@ class BioGptModelTester:
         model.eval()
         result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
+
+
+    def create_and_check_for_sequence_classification(
+        self,
+        config,
+        input_ids,
+        token_type_ids,
+        input_mask,
+        sequence_labels,
+        token_labels,
+        choice_labels,
+        encoder_hidden_states,
+        encoder_attention_mask,
+    ):
+        model = BioGptForSequenceClassification(config=config)
+        model.to(torch_device)
+        model.eval()
+        result = model(input_ids, attention_mask=input_mask, token_type_ids=token_type_ids, labels=token_labels)
+        self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.vocab_size))
+
 
     def create_and_check_biogpt_model_attention_mask_past(
         self, config, input_ids, input_mask, head_mask, token_type_ids, *args
@@ -266,7 +287,8 @@ class BioGptModelTester:
         model.eval()
         result = model(input_ids, attention_mask=input_mask)
         self.parent.assertEqual(result.logits.shape, (self.batch_size, self.seq_length, self.num_labels))
-        
+    
+
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         (
@@ -336,7 +358,36 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
 
     def test_biogpt_sequence_classification_model(self):
         config_and_inputs = self.model_tester.prepare_config_and_inputs()
-        self.model_tester.create_and_check_biogpt_for_sequence_classification(*config_and_inputs)    
+        self.model_tester.create_and_check_biogpt_for_sequence_classification(*config_and_inputs) 
+
+    def test_sequence_classification(self):
+    
+        tokenizer = BioGptTokenizer.from_pretrained("microsoft/biogpt")
+        tokenizer.padding_side = "left"
+
+        model = BioGptForSequenceClassification.from_pretrained("microsoft/biogpt", num_labels=3)
+        model.to(torch_device)
+        
+        inputs = tokenizer(
+            "A 72 y.o. man with parkinson's disease with a levadopa prescription.", add_special_tokens=False, return_tensors="pt", padding_side='left'
+        )
+
+        inputs['labels'] = torch.tensor([1])
+        for key, value in inputs.items():
+            print(f"{key}: {value.shape}, {value}")
+        
+        with torch.no_grad():
+            logits = model(**inputs).logits
+
+
+        print(f"LOGITS:\n{logits.shape}, {logits}")
+
+        
+        predicted_token_class_ids = logits.argmax(-1)
+
+        self.parent.assertEqual(1, 0)
+                
+   
 
     @slow
     def test_batch_generation(self):
