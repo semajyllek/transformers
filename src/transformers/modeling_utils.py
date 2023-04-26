@@ -726,7 +726,6 @@ def get_problem_type(num_labels: int, labels_dtype: Any) -> str:
     Returns a problem_type string in {regression, single_label, multi_label_classification}, 
     based on the number of labels and the data type, for selecting the correct loss function for the model.
     """
-    print(f"in problem type, num_labels: {num_labels}, labels_dtype: {labels_dtype}")
     if num_labels == 1:
         return "regression"
     elif num_labels > 1 and (labels_dtype == torch.long or labels_dtype == torch.int):
