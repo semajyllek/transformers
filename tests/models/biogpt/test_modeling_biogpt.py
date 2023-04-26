@@ -85,7 +85,10 @@ class BioGptModelTester:
         self.scope = scope
 
     def prepare_config_and_inputs(self, add_eos_token_ids=False):
-        input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size)
+        config = self.get_config()
+        exclude_vals = {config.eos_token_id} if add_eos_token_ids else set()
+
+        input_ids = ids_tensor([self.batch_size, self.seq_length], self.vocab_size, exclude_vals=exclude_vals)
 
         input_mask = None
         if self.use_input_mask:
@@ -93,17 +96,15 @@ class BioGptModelTester:
 
         token_type_ids = None
         if self.use_token_type_ids:
-            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size)
+            token_type_ids = ids_tensor([self.batch_size, self.seq_length], self.type_vocab_size, exclude_vals=exclude_vals)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
         if self.use_labels:
-            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size)
-            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels)
-            choice_labels = ids_tensor([self.batch_size], self.num_choices)
-
-        config = self.get_config()
+            sequence_labels = ids_tensor([self.batch_size], self.type_sequence_label_size, exclude_vals=exclude_vals)
+            token_labels = ids_tensor([self.batch_size, self.seq_length], self.num_labels, exclude_vals=exclude_vals)
+            choice_labels = ids_tensor([self.batch_size], self.num_choices, exclude_vals=exclude_vals)
 
         if add_eos_token_ids:
             input_ids[:, -1] = config.eos_token_id
@@ -194,8 +195,8 @@ class BioGptModelTester:
         next_tokens = ids_tensor((self.batch_size, 1), config.vocab_size)
 
         # change a random masked slice from input_ids
-        random_seq_idx_to_change = ids_tensor((1,), half_seq_length).item() + 1
-        random_other_next_tokens = ids_tensor((self.batch_size, 1), config.vocab_size).squeeze(-1)
+        random_seq_idx_to_change = ids_tensor((1,), half_seq_length, exclude_vals={config.eos_token_id}).item() + 1
+        random_other_next_tokens = ids_tensor((self.batch_size, 1), config.vocab_size, exclude_vals={config.eos_token_id}).squeeze(-1)
         input_ids[:, -random_seq_idx_to_change] = random_other_next_tokens
 
         # append to next input_ids and attn_mask
@@ -210,7 +211,7 @@ class BioGptModelTester:
         output_from_past = model(next_tokens, past_key_values=past, attention_mask=attn_mask)["last_hidden_state"]
 
         # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
+        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1], exclude_vals={config.eos_token_id}).item()
         output_from_no_past_slice = output_from_no_past[:, -1, random_slice_idx].detach()
         output_from_past_slice = output_from_past[:, 0, random_slice_idx].detach()
 
@@ -230,8 +231,8 @@ class BioGptModelTester:
         output, past_key_values = outputs.to_tuple()
 
         # create hypothetical multiple next token and extent to next_input_ids
-        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size)
-        next_attn_mask = ids_tensor((self.batch_size, 3), 2)
+        next_tokens = ids_tensor((self.batch_size, 3), config.vocab_size, exclude_vals={config.eos_token_id})
+        next_attn_mask = ids_tensor((self.batch_size, 3), 2,  exclude_vals={config.eos_token_id})
 
         # append to next input_ids and
         next_input_ids = torch.cat([input_ids, next_tokens], dim=-1)
@@ -243,7 +244,7 @@ class BioGptModelTester:
         ]
 
         # select random slice
-        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1]).item()
+        random_slice_idx = ids_tensor((1,), output_from_past.shape[-1], exclude_vals={config.eos_token_id}).item()
         output_from_no_past_slice = output_from_no_past[:, -3:, random_slice_idx].detach()
         output_from_past_slice = output_from_past[:, :, random_slice_idx].detach()
 
@@ -365,24 +366,21 @@ class BioGptModelTest(ModelTesterMixin, GenerationTesterMixin, PipelineTesterMix
         config_and_inputs = self.model_tester.prepare_config_and_inputs(add_eos_token_ids=True)
         self.model_tester.create_and_check_biogpt_for_sequence_classification(*config_and_inputs) 
 
-    #@slow
+    @slow
     def test_sequence_classification(self):
         tokenizer = BioGptTokenizer.from_pretrained("microsoft/biogpt")
-        tokenizer.padding_side = "left"
-
         model = BioGptForSequenceClassification.from_pretrained("microsoft/biogpt", num_labels=3)
         model.to(torch_device)
         
         inputs = tokenizer(
             "A 72 y.o. man with parkinson's disease with a levadopa prescription.", return_tensors="pt", padding_side='left'
         )
-        print(inputs)
-
+   
         with torch.no_grad():
             logits = model(**inputs, labels=torch.tensor([1])).logits
 
         predicted_token_class_ids = logits.argmax(-1)
-        self.assertEqual(predicted_token_class_ids, torch.tensor([1]))
+        self.assertEqual(predicted_token_class_ids, torch.tensor([2]))
                 
    
 

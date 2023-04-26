@@ -2711,7 +2711,7 @@ class ModelTesterMixin:
 global_rng = random.Random()
 
 
-def ids_tensor(shape, vocab_size, rng=None, name=None):
+def ids_tensor(shape, vocab_size, rng=None, name=None, exclude_vals={}):
     #  Creates a random int32 tensor of the shape within the vocab size
     if rng is None:
         rng = global_rng
@@ -2722,7 +2722,10 @@ def ids_tensor(shape, vocab_size, rng=None, name=None):
 
     values = []
     for _ in range(total_dims):
-        values.append(rng.randint(0, vocab_size - 1))
+        random_int = rng.randint(0, vocab_size - 1)
+        while random_int in exclude_vals:
+            random_int = rng.randint(0, vocab_size - 1)
+        values.append(random_int)
 
     return torch.tensor(data=values, dtype=torch.long, device=torch_device).view(shape).contiguous()
 

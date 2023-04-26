@@ -30,7 +30,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import torch
 from packaging import version
 from torch import Tensor, nn
-from torch.nn import CrossEntropyLoss
+from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from .activations import get_activation
 from .configuration_utils import PretrainedConfig
@@ -717,6 +717,36 @@ def _add_variant(weights_name: str, variant: Optional[str] = None) -> str:
         weights_name = ".".join(splits)
 
     return weights_name
+
+
+
+
+def get_problem_type(num_labels: int, labels_dtype: Any) -> str:
+    """
+    Returns a problem_type string in {regression, single_label, multi_label_classification}, 
+    based on the number of labels and the data type, for selecting the correct loss function for the model.
+    """
+    if num_labels == 1:
+        return "regression"
+    elif num_labels > 1 and (labels_dtype == torch.long or labels_dtype == torch.int):
+        return "single_label_classification"
+    return "multi_label_classification"
+
+
+def get_classification_loss(problem_type: str, num_labels: int, labels: Any, logits: torch.Tensor) -> torch.FloatTensor:
+    if problem_type == "regression":
+        loss_fct = MSELoss()
+        if num_labels == 1:
+            loss = loss_fct(logits.squeeze(), labels.squeeze())
+        else:
+            loss = loss_fct(logits, labels)
+    elif problem_type == "single_label_classification":
+        loss_fct = CrossEntropyLoss()
+        loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
+    elif problem_type == "multi_label_classification":
+        loss_fct = BCEWithLogitsLoss()
+        loss = loss_fct(logits, labels)
+
 
 
 class ModuleUtilsMixin:
@@ -1653,6 +1683,7 @@ class PreTrainedModel(nn.Module, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         activations".
         """
         return any(hasattr(m, "gradient_checkpointing") and m.gradient_checkpointing for m in self.modules())
+
 
     def save_pretrained(
         self,
