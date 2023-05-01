@@ -1453,13 +1453,13 @@ class GPT2ForSequenceClassification(GPT2PreTrainedModel):
                     "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
                 )
 
-        print(f"logit shapes before pooling: {logits.shape}")
-        print(f"sequence lengths: {sequence_lengths}")
+        #print(f"logit shapes before pooling: {logits.shape}")
+        #print(f"sequence lengths: {sequence_lengths}")
         pooled_logits = logits[torch.arange(batch_size, device=logits.device), sequence_lengths]
 
         loss = None
         if labels is not None:
-            print(labels)
+            #print(labels)
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
