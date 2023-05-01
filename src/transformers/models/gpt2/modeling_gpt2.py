@@ -1478,9 +1478,9 @@ class GPT2ForSequenceClassification(GPT2PreTrainedModel):
                 loss_fct = CrossEntropyLoss()
                 pl = pooled_logits.view(-1, self.num_labels)
                 lv = labels.view(-1)
-                print("_____   ______   ______  _______     _______    ____ ___     __LOSS SHAPES__ __      ______    ______ _____  ________    ______     ____")
-                print(f"pooled logits -1 view: {pl.shape}, labels -1 view: {lv.shape}")
-                breakpoint()
+                #print("_____   ______   ______  _______     _______    ____ ___     __LOSS SHAPES__ __      ______    ______ _____  ________    ______     ____")
+                #print(f"pooled logits -1 view: {pl.shape}, labels -1 view: {lv.shape}")
+                #breakpoint()
                 loss = loss_fct(pl, lv)
              
             elif self.config.problem_type == "multi_label_classification":
